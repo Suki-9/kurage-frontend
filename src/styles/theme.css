@@ -1,0 +1,19 @@
+:root[theme="dark"] {
+  --primary: rgb(0, 88, 189);
+  --primary-bg: rgb(7, 7, 10);
+  --on-primary: rgb(240, 240, 240);
+  --primary-tonal: color-mix(in srgb, var(--primary) 20%, rgb(77, 77, 77));
+  --primary-tonal-bg: color-mix(in srgb, var(--primary) 20%, rgb(51, 51, 51));
+  --on-primary-tonal: color-mix(in srgb, var(--on-primary) 50%, rgba(255, 255, 255, 1));
+
+  --secondary: rgb(98, 105, 190);
+  --secondary-bg: rgb(20, 20, 29);
+  --on-secondary: rgb(226, 226, 226);
+  --secondary-tonal: color-mix(in srgb, var(--secondary) 20%, rgb(77, 77, 77));
+  --secondary-tonal-bg: color-mix(in srgb, var(--secondary) 20%, rgb(51, 51, 51));
+  --on-secondary-tonal: color-mix(in srgb, var(--on-secondary) 50%, rgba(255, 255, 255, 1));
+
+  --error: rgb(190, 0, 0);
+}
+
+:root[theme="light"] {}

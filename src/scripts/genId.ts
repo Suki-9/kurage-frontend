@@ -1,0 +1,1 @@
+export function genId(): string { return new Date().getTime().toString(32) }
