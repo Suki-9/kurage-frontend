@@ -5,8 +5,7 @@ export function m3Button(o: KuElementTagNameMap['m3-button']['options'] | null, 
   const attr = o === null || o instanceof Node || typeof o === 'string' ? {} : o;
 
   const root = h('button', { ...attr, class: `m3-button ${attr.class ?? ''}`, type: attr.type ?? 'outlined' },
-    o instanceof Element && o,
-    ...c
+    o instanceof Element && o, ...c
   );
 
   root.on('click', e => {

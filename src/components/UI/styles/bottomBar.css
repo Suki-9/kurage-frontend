@@ -1,0 +1,37 @@
+#bottom-bar {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+  
+    box-sizing: border-box;
+  
+    z-index: 5000;
+  
+    display: flex;
+    justify-content: space-between;
+  
+    padding: 1em;
+    width: 100%;
+  
+    background-color: color-mix(in srgb, var(--secondary-bg) 50%, rgba(0, 0, 0, 0));
+  
+    button {
+      padding: .5em;
+      border: none;
+      border-radius: 50%;
+  
+      font-size: 2.3em;
+  
+      background-color: var(--secondary-tonal-bg);
+      color: var(--on-secondary-tonal);
+  
+      &:nth-last-child(1) {
+        background-color: var(--secondary);
+        color: var(--on-secondary);
+      }
+  
+      span {
+        display: block
+      }
+    }
+  }

@@ -1,3 +1,4 @@
+export * from './app'
 export * from './hyper'
 export * from './genId'
 export * from './store'

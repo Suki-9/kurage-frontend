@@ -4,7 +4,10 @@ Element.prototype.qSAll = Element.prototype.querySelectorAll;
 Element.prototype.removeChildren = function () {
   this.parentNode?.replaceChild(this.cloneNode(false), this);
 };
-ShadowRoot.prototype.qS = ShadowRoot.prototype.querySelector;
+
+Node.prototype.remove = function () {
+  this.parentNode?.removeChild(this);
+}
 
 EventTarget.prototype.on = function on<K extends keyof HTMLElementEventMap>(
   type: keyof HTMLElementEventMap | string,

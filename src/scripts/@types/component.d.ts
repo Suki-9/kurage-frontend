@@ -1,8 +1,33 @@
 type KuAudioPlayer = {} & HTMLDivElement;
-type MisskeyNote = any;
+
+type MisskeyReaction = {
+  userId: string;
+  reaction: string;
+}
+
+interface MisskeyNoteElement extends HTMLDivElement {
+  $n: MisskeyNote;
+
+  cw: HTMLElement;
+  quote: HTMLElement;
+  renoter: HTMLElement;
+  reactions: HTMLElement;
+
+  removeReaction: (e: MisskeyReaction) => void;
+  addReaction: (e: MisskeyReaction) => void;
+
+  reaction: (e: string) => Promise<void>;
+
+  switchCw: () => void;
+
+  renote: () => void;
+  removeNote: () => void;
+}
 
 type InheritsFromNode = HTMLElement | Element | Node | Text;
-type KuElementAttributes<T = {}> = Record<string, any> & { onclick?: () => any } & T;
+type KuElementAttributes<T = {}> = Record<string, any> & {
+  onclick?: (this: GlobalEventHandlers, { target }: MouseEvent) => any;
+} & T;
 type KuElementTagNameMap = {
   'text': {
     options: string;
@@ -30,23 +55,26 @@ type KuElementTagNameMap = {
   };
   'mi-note': {
     options: KuElementAttributes<{ note: string | MisskeyNote }>;
-    type: HTMLDivElement;
+    type: MisskeyNoteElement;
   };
   'mi-post-modal': {
     options: KuElementAttributes<{ quote?: MisskeyNote, reply?: MisskeyNote }>;
     type: HTMLDivElement;
   };
   'timeline': {
-    options?: nullish;
+    options?: {
+      instance?: string;
+      channel: 'timeline' | 'localTimeline' | 'hybridTimeline' | 'globalTimeline';
+    };
     type: HTMLDivElement;
   };
   'mi-emoji-pallet': {
     options: KuElementAttributes<{
-      emitter: (e: string) => unknown;
+      emitter: (e: { name: string }) => unknown;
     }>;
     type: HTMLDivElement;
   };
-  'mi-bottom-bar': {
+  'bottom-bar': {
     options: KuElementAttributes;
     type: HTMLDivElement;
   };

@@ -5,11 +5,11 @@ interface Document {
 interface Element {
   qS: typeof Element.prototype.querySelector;
   qSAll: typeof Element.prototype.querySelectorAll;
-  removeChildren: () => void
+  removeChildren: () => void;
 }
 
-interface ShadowRoot {
-  qS: typeof ShadowRoot.prototype.querySelector
+interface Node {
+  remove: () => void;
 }
 
 interface EventTarget {

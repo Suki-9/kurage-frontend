@@ -1,4 +1,11 @@
 import '@/style.css'
-import { router } from '@/scripts'
+import { router, misskey } from '@/scripts'
 
-router.routing()
+Promise.all([
+  misskey.emojis.init(),
+  misskey.users.init()
+]).then(
+  () => {
+    router.routing();
+  }
+);

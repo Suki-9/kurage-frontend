@@ -1,0 +1,50 @@
+.timeline {
+  &>.head {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: .5em;
+
+    box-sizing: border-box;
+
+    padding: .5em;
+
+    border-bottom: solid 1px;
+
+    overflow: hidden;
+
+    &>img {
+      height: 2.5em;
+      width: 2.5em;
+
+      border-radius: 2em;
+    }
+
+    &>div {
+      flex-grow: 1;
+
+      display: flex;
+      overflow-x: auto;
+      overflow-y: hidden;
+
+      scrollbar-width: none;
+
+      &>* {
+        flex-shrink: 0;
+      }
+    }
+  }
+
+  #timeline {
+    display: grid;
+    row-gap: .5em;
+
+    padding: .5em;
+
+    .mi-note.move-in {
+      animation-duration: .6s;
+      animation-name: moveIn;
+    }
+  }
+}

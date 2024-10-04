@@ -1,24 +1,35 @@
+const tableNames = [
+  'emojis', 'users', 'instances'
+] as const;
+
 export const IDB = {
   open: async () => new Promise<IDBDatabase>(r => {
-    const $ = indexedDB.open('store', 1);
-    $.onupgradeneeded = () => [...$.result.objectStoreNames].includes('key-value') || $.result.createObjectStore('key-value', { keyPath: 'key' });
-    $.onsuccess = () => r($.result)
+    const $ = indexedDB.open('key-value', 1);
+
+    $.onsuccess = () => r($.result);
+    $.onupgradeneeded = () => {
+      const objectStoreNames = [...$.result.objectStoreNames];
+      for (const tableName of tableNames) if (!objectStoreNames.includes(tableName)) $.result.createObjectStore(tableName, { keyPath: 'key' })
+    };
   }),
-  put: async (value: { key: string, val: any }) => new Promise<void>(
+  put: async (storeName: Values<typeof tableNames>, { key, val }: { key: string, val: any }) => new Promise<void>(
     (resolve, reject) => IDB
       .open()
       .then(db => {
-        const $ = db.transaction('key-value', 'readwrite').objectStore('key-value').put(value);
+        const $ = db.transaction(storeName as string, 'readwrite').objectStore(storeName as string).put({ key, val });
         $.onsuccess = () => resolve()
         $.onerror = () => reject()
       })
   ),
-  get: async <R>(key: string) => new Promise<R>(
+  get: async <R>(storeName: Values<typeof tableNames>, key: string) => new Promise<R>(
     (resolve, reject) => IDB
       .open()
       .then(db => {
-        const $ = db.transaction('key-value', 'readwrite').objectStore('key-value').get(key)
-        $.onsuccess = () => resolve($.result && 'val' in $.result ? $.result.val : null)
+        const $ = key === '*'
+          ? db.transaction(storeName as string, 'readwrite').objectStore(storeName as string).getAll()
+          : db.transaction(storeName as string, 'readwrite').objectStore(storeName as string).get(key);
+
+        $.onsuccess = () => resolve(key === '*' ? $.result : $.result && 'val' in $.result ? $.result.val : null)
         $.onerror = () => reject()
       })
   )
