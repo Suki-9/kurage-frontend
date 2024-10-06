@@ -14,6 +14,8 @@ export const router = {
       if (p === '/') router.push(Pages.Home())
       else if (p === '/login') router.push(Pages.Login())
       else if (p === '/callback') router.push(Pages.Callback())
+      else if (p.match(/\/notes\/.+/)) router.push(Pages.Notes())
+      else if (p.match(/\@.+/)) router.push(Pages.Users())
       else router.push(Pages.Notfound())
     else
       if (p === '/callback') router.push(Pages.Callback())

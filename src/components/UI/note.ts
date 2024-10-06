@@ -181,7 +181,7 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
     root.quote
   );
 
-  const cw = $n.cw && (
+  const cw = <HTMLDivElement>($n.cw && (
     (contents.style.display = 'none'),
     h('div', { class: 'cw' },
       ...mfm($n.cw),
@@ -194,7 +194,7 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
       }, 'もっと見る'),
       contents,
     )
-  );
+  ));
 
   const reactions = h('div', { class: 'reactions' },
     ...Object.entries((n.renote && !root.quote ? $n : n).reactions ?? {}).map(([e, c]) => {

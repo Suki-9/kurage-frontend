@@ -56,8 +56,7 @@
       }
 
       .cw {
-        display: flex;
-        flex-direction: column;
+        display: grid;
         row-gap: var(--contents-gap);
 
         &>button {
@@ -179,6 +178,8 @@
 
       gap: .5em;
 
+      box-sizing: border-box;
+
       color: var(--on-primary-tonal);
       background: var(--primary-tonal-bg);
 
@@ -225,6 +226,9 @@
   scroll-snap-type: x mandatory;
 
   padding: .5em;
+
+  animation-duration: .6s;
+  animation-name: fade-in;
 
   img {
     width: 100%;

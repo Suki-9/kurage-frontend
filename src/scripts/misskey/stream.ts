@@ -18,7 +18,7 @@ class MisskeyTimeLineStream extends WebSocket {
 type StreamingAPIUtils = {
   connections: Record<string, WebSocket | MisskeyTimeLineStream>;
 
-  streamConnection: <T extends StreamChannels>(channel: T, options?: { host: string, i: string }) => Promise<T extends TimeLineChannels ? MisskeyTimeLineStream : WebSocket>;
+  streamConnection: <T extends StreamChannels>(channel?: T, options?: { host: string, i: string }) => Promise<T extends TimeLineChannels ? MisskeyTimeLineStream : WebSocket>;
 };
 
 // TODO ふさわしい場所に移動する。
@@ -29,20 +29,21 @@ function includes<A extends ReadonlyArray<unknown>>(array: A, input: unknown): i
 export const stream: StreamingAPIUtils = {
   connections: {},
 
-  async streamConnection(channel = 'timeline', options?) {
+  async streamConnection(channel?, options?) {
     const
       id = genId(),
       url = `${(options?.host ?? misskey.users.loginUser?.host)?.replace('http', 'ws')}/streaming?i=${options?.i ?? misskey.users.loginUser?.i}`;
 
-    stream.connections[id] = includes(timeLineChannels, channel)
+    stream.connections[id] = includes(timeLineChannels, channel ?? 'timeline')
       ? new MisskeyTimeLineStream(url)
       : new WebSocket(url);
 
     return new Promise((resolve, reject) => {
       stream.connections[id].on('error', () => reject());
+      stream.connections[id].on('close', async () => stream.connections[id] = await stream.streamConnection(channel, options));
       stream.connections[id].on('open', () => {
-        stream.connections[id].send(`{"type":"connect", "body":{"channel":"${channel}", "id":"${id}", "params": {}}}`);
-        // TODO : ココの型をどうにかすべき
+        stream.connections[id].send(`{"type":"connect", "body":{"channel":"${channel ?? 'timeline'}", "id":"${id}", "params": {}}}`);
+        console.log('stream connected.')
         resolve(<MisskeyTimeLineStream>stream.connections[id]);
       });
     });

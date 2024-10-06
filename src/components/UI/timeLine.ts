@@ -64,6 +64,8 @@ export function timeLine(o: KuElementTagNameMap['timeline']['options']) {
 
       for (const note of (await misskey.api.POST<MisskeyNote[]>(`notes/${channel === 'homeTimeline' ? 'timeline' : channel}`, {}))) {
         stream.subNote(note.id);
+        if (note.renote) stream.subNote(note.renote.id);
+        if (note.reply) stream.subNote(note.reply.id);
         root.append(h('mi-note', { note }));
       };
     }
