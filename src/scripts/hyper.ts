@@ -41,7 +41,7 @@ export function h(
     case 'mi-note': return UI.miNote(o as KuElementTagNameMap['mi-note']['options']);
     case 'post-modal': return UI.postModal(o as KuElementTagNameMap['post-modal']['options']);
     case 'timeline': return UI.timeLine(o as KuElementTagNameMap['timeline']['options']);
-    case 'mi-emoji-pallet': return UI.emojiPallte(o as KuElementTagNameMap['mi-emoji-pallet']['options']);
+    case 'mi-emoji-pallet': return UI.emojiPallet(o as KuElementTagNameMap['mi-emoji-pallet']['options']);
     case 'bottom-bar': return UI.bottomBar();
     case 'text': return document.createTextNode(o as KuElementTagNameMap['text']['options']);
     default:

@@ -1,20 +1,26 @@
 import './styles/emoji-pallet.css'
 import { h, misskey } from "@/scripts"
 
-export function emojiPallte(o: KuElementTagNameMap['mi-emoji-pallet']['options']) {
-  function _h(i: CategorizedIndex) {
-    return Object.entries(i).map(([c, o]) =>
-      c == '$' && Array.isArray(o)
-        ? h('div', { class: 'emojis' }, ...o.map($ => h('button', { onclick: (() => emit($)) }, h('img', { src: $.url, alt: $.name, loading: 'lazy', decoding: 'async' }))))
-        : ($ => ($.qS('&>a')?.on('click', _ => {
-          const t = $.qS('&>div');
-          t?.setAttribute('class', t.getAttribute('class') == 'open' ? '' : 'open');
-        }), $)
-        )(h('div', { class: 'folder' },
-          h('a', c),
-          h('div', ..._h(o as CategorizedIndex))
-        ))
-    );
+export function emojiPallet(o: KuElementTagNameMap['mi-emoji-pallet']['options']) {
+  function _h(i: CategorizedIndex): HTMLElement[] {
+    return Object.entries(i).map(([c, o]) => {
+      if (c === '$' && Array.isArray(o)) {
+        return h('div', { class: 'emojis' }, ...o.map($ => h('button', { onclick: (() => emit($)) }, h('img', { src: $.url, alt: $.name, loading: 'lazy', decoding: 'async' }))))
+      } else {
+        let child: nullable<HTMLDivElement>;
+        const folder = h('div', { class: 'folder' },
+          h('a', {
+            onclick() {
+              child = child
+                ? (child.remove(), null)
+                : folder.appendChild(h('div', ..._h(o as CategorizedIndex)));
+            }
+          }, c),
+        );
+
+        return folder;
+      }
+    });
   }
 
   let searchResult: MisskeyEmoji[] = [];

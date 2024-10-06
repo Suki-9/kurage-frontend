@@ -37,7 +37,7 @@
     background-color: var(--secondary-bg);
     color: var(--on-secondary);
     border-radius: 1em;
-    animation-duration: 0.6s;
+    animation-duration: .5s;
     animation-name: moveIn;
 
     ::-webkit-scrollbar-thumb {

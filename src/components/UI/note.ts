@@ -7,6 +7,12 @@ function relativeTime(t: number) {
 }
 
 export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
+  const textCopy = (text: string) => {
+    if ('clipboard' in navigator) navigator.clipboard.writeText(text).then(
+      _ => app.toast.add({ contents: 'クリップボードにコピーしました。' })
+    )
+    else app.toast.add({ type: 'error', contents: '使えないみたい...' })
+  }
   const genModal = (...row: ({ icon: string, contents: string, action: () => unknown } | falsy)[]) => {
     const modal = document.body.appendChild(h('m3-bottom-sheet', { class: 'note-modal', bg: true },
       ...row.filter((row): row is { icon: string, contents: string, action: () => unknown } => Boolean(row)).map(
@@ -24,7 +30,15 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
       else if (node.type === 'hashtag') return h('a', { class: 'hashtag' }, node.props.hashtag);
       else if (node.type === 'emojiCode') {
         const emoji = misskey.emojis.search('name', node.props.name);
-        return emoji ? h('img', { src: emoji.url, class: 'emoji', loading: 'lazy' }) : h('span', node.props.name);
+        return emoji ? h('img', {
+          src: emoji.url, class: 'emoji', loading: 'lazy', onclick() {
+            const modal = document.body.appendChild(genModal(
+              { icon: 'content_copy', contents: 'コピー', action() { textCopy(emoji.name); modal.remove() } },
+              { icon: 'add', contents: 'リアクションする', action() { root.reaction(emoji.name); modal.remove() } },
+              { icon: 'info', contents: '情報', action() { } }
+            ))
+          }
+        }) : h('span', node.props.name);
       }
     };
 
@@ -61,7 +75,7 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
     const d = () => apiCall('notes/reactions/delete', { noteId: $n.id, reaction: $n.myReaction });
     const c = () => apiCall('notes/reactions/create', { noteId: $n.id, reaction: e }).then(() => $n.myReaction = e);
 
-    (e = e.replace('@.', '')) === ($n.myReaction = $n.myReaction?.replace('@.', ''))
+    (e = e.match(/:.+:/) ? e.replace('@.', '') : `:${e.replace('@.', '')}:`) === ($n.myReaction = $n.myReaction?.replace('@.', ''))
       ? d()
       : $n.myReaction
         ? document.body.append(h('m3-modal', { type: 'warning', actions: { OK() { d().then(c) } } }, 'リアクションを変更しますか？'))
@@ -144,13 +158,7 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
             }, {
               icon: 'content_copy',
               contents: 'リンクをコピー',
-              action() {
-                if (navigator.clipboard) navigator.clipboard.writeText('/notes/' + n.id).then(
-                  _ => app.toast.add({ contents: 'クリップボードにコピーしました。' })
-                );
-                else app.toast.add({ type: 'error', contents: '使えないみたい' })
-                modal.remove();
-              }
+              action() { textCopy('/notes/' + n.id); modal.remove() }
             })
           }
         }, h('span', { class: 'material-symbols-outlined' }, 'more_horiz')),
@@ -258,21 +266,14 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
           h('button', {
             onclick() {
               const modal = genModal(
+                { icon: 'content_copy', contents: 'リンクをコピー', action() { textCopy('/notes/' + n.id); modal.remove() } },
                 {
-                  icon: 'content_copy', contents: 'リンクをコピー', action() {
-                    if ('clipboard' in navigator) navigator.clipboard.writeText('/notes/' + n.id).then(
-                      _ => app.toast.add({ contents: 'クリップボードにコピーしました。' })
-                    )
+                  icon: 'share', contents: 'その他の方法でシェア', action() {
+                    if (navigator.share) navigator.share({ url: '/notes/' + n.id })
                     else app.toast.add({ type: 'error', contents: '使えないみたい...' })
                     modal.remove()
                   }
                 }, {
-                icon: 'share', contents: 'その他の方法でシェア', action() {
-                  if (navigator.share) navigator.share({ url: '/notes/' + n.id })
-                  else app.toast.add({ type: 'error', contents: '使えないみたい...' })
-                  modal.remove()
-                }
-              }, {
                 icon: 'format_quote', contents: 'ノートを引用', action() {
                   modal.remove();
                   document.body.append(h('post-modal', { quote: n }))
