@@ -1,22 +1,22 @@
-import { misskey } from "@/scripts";
+import { misskey } from "@/scripts"
+import * as Pages from "@/pages"
+
+type Page = InheritsFromNode[];
 
 export const router = {
-  push(path: string): void {
-    import(path).then(m => {
-      document.body.removeChildren();
-      document.body.append(...m.Page());
-      if ('onMounted' in m) m.onMounted();
-    });
+  push(p: Page): void {
+    document.body.removeChildren();
+    document.body.append(...p);
   },
   routing(p: string = location.pathname) {
 
     if (misskey.users.loginUser)
-      if (p === '/') router.push('../pages/home')
-      else if (p === '/login') router.push('../pages/login')
-      else if (p === '/callback') router.push('../pages/callback')
-      else router.push('../pages/notfound')
+      if (p === '/') router.push(Pages.Home())
+      else if (p === '/login') router.push(Pages.Login())
+      else if (p === '/callback') router.push(Pages.Callback())
+      else router.push(Pages.Notfound())
     else
-      if (p === '/callback') router.push('../pages/callback')
-      else router.push('../pages/login')
+      if (p === '/callback') router.push(Pages.Callback())
+      else router.push(Pages.Login())
   }
 }
