@@ -283,6 +283,10 @@
 }
 
 header {
+  display: flex;
+  flex-direction: column;
+  gap: .5em;
+
   &:not(:has(> :nth-child(1))) {
     display: none;
   }
@@ -326,7 +330,7 @@ footer {
     'opsz' 24;
 }
 
-.isFavorited>.material-symbols-outlined {
+.isFavorited>span.material-symbols-outlined {
   font-variation-settings:
     'FILL' 1,
     'wght' 500,

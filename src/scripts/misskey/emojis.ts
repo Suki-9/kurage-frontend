@@ -1,4 +1,4 @@
-import { IDB } from "@/scripts";
+import { IDB, misskey } from "@/scripts";
 
 type MisskeyEmojisUtils = {
   Initialized: boolean;
@@ -7,7 +7,7 @@ type MisskeyEmojisUtils = {
   init: () => Promise<void>;
   add: (instance: string) => Promise<void>;
   get: <T extends 'categorized' | 'list'>(instance: string, type?: T) => nullable<T extends 'categorized' ? CategorizedIndex : MisskeyEmoji[]>;
-  search: <T extends 'aliases' | 'category' | string>(t: T, q: string, instance: string, limit?: number) => T extends 'aliases' ? MisskeyEmoji[] : T extends 'category' ? MisskeyEmoji[] : nullable<MisskeyEmoji>;
+  search: <T extends 'aliases' | 'category' | string>(t: T, q: string, instance?: string, limit?: number) => T extends 'aliases' ? MisskeyEmoji[] : T extends 'category' ? MisskeyEmoji[] : nullable<MisskeyEmoji>;
 }
 
 // TODO コードを短くする (基本機能完成後)
@@ -68,8 +68,13 @@ export const emojis: MisskeyEmojisUtils = {
   },
 
   // @ts-ignore
-  search(t: 'aliases' | 'category' | 'name' | string, q: string, instance: string, limit: number = 50) {
-    if (this._index) {
+  search(
+    t: 'aliases' | 'category' | 'name' | string,
+    q: string,
+    instance: string | undefined = misskey.users.loginUser?.host,
+    limit: number = 50
+  ) {
+    if (this._index && instance) {
       if (t == 'aliases') {
         const result: MisskeyEmoji[] = [];
 

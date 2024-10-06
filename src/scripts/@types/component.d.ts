@@ -42,7 +42,10 @@ type KuElementTagNameMap = {
     type: HTMLButtonElement
   };
   'm3-modal': {
-    options: InheritsFromNode | string | KuElementAttributes;
+    options: InheritsFromNode | string | KuElementAttributes<{
+      actions: Record<string, () => void | Promise<void>>,
+      type?: 'info' | 'warning' | 'error'
+    }>;
     type: HTMLDivElement;
   };
   'm3-bottom-sheet': {

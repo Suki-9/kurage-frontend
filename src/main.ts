@@ -1,4 +1,5 @@
 import '@/style.css'
+import './prototypeExtensions'
 import { router, misskey } from '@/scripts'
 
 Promise.all([

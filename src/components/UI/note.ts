@@ -3,30 +3,27 @@ import { parse, MfmNode } from 'mfm-js';
 import { h, misskey, app } from '@/scripts';
 
 function relativeTime(t: number) {
-  let seconds = Math.ceil((new Date().getTime() - new Date(t).getTime()) / 1000);
-  const units = [
-    { time: 60, label: '秒' },
-    { time: 60, label: '分' },
-    { time: 24, label: '時間' },
-    { time: 30, label: '日' },
-    { time: 12, label: 'ヶ月' },
-    { time: Infinity, label: '年' }
-  ];
-
-  for (let { time, label } of units) {
-    if (seconds < time) return `${seconds}${label}`;
-    seconds = Math.ceil(seconds / time);
-  }
+  return (t = Math.ceil((new Date().getTime() - new Date(t).getTime()) / 1000)) < 60 ? t + '秒' : (t = Math.ceil(t / 60)) < 60 ? t + '分' : (t = Math.ceil(t / 60)) < 24 ? t + '時間' : (t = Math.ceil(t / 24)) < 30 ? t + '日' : (t = Math.ceil(t / 30)) < 12 ? t + 'ヶ月' : (t = Math.ceil(t / 12)) ? '年' : null
 }
 
 export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
+  const genModal = (...row: ({ icon: string, contents: string, action: () => unknown } | falsy)[]) => {
+    const modal = document.body.appendChild(h('m3-bottom-sheet', { class: 'note-modal', bg: true },
+      ...row.filter((row): row is { icon: string, contents: string, action: () => unknown } => Boolean(row)).map(
+        ({ icon, action, contents }) => h('m3-button', { type: 'text', onclick: action }, h('icon', { name: icon }), ...(Array.isArray(contents) ? contents : [contents]))
+      ),
+      h('m3-button', { onclick() { modal.remove() } }, 'キャンセル')
+    ));
+    return modal;
+  };
+  const apiCall = misskey.api.POST;
   const mfm = (t: nullable<string>): (InheritsFromNode | string | falsy)[] => {
     const N2D = (node: MfmNode): (InheritsFromNode | string | falsy) => {
       if (node.type === 'text') return h('span', node.props.text);
       else if (node.type === 'url') return h('a', { href: node.props.url }, ...(node.children ? node.children.map(N2D) : [node.props.url]));
       else if (node.type === 'hashtag') return h('a', { class: 'hashtag' }, node.props.hashtag);
       else if (node.type === 'emojiCode') {
-        const emoji = misskey.emojis.search('name', node.props.name, instance);
+        const emoji = misskey.emojis.search('name', node.props.name);
         return emoji ? h('img', { src: emoji.url, class: 'emoji', loading: 'lazy' }) : h('span', node.props.name);
       }
     };
@@ -34,53 +31,46 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
     return parse(t ?? '').map(N2D);
   };
 
-  const userId = misskey.users.loginUser?.id;
-  const i = misskey.users.loginUser?.i;
-  const root = h('div', { class: ['mi-note', o.class].join(' ') }) as MisskeyNoteElement;
-  const media: Record<string, HTMLElement> = {};
-  const n: MisskeyNote = typeof o.note === 'string' ? JSON.parse(o.note) : o.note;
-  const $n = n.renote && !n.text ? n.renote : n;
-  const isQuote = o.class == 'renote' || o.class == 'reply';
-  const instance = misskey.users.loginUser?.host as string;
+  const
+    n: MisskeyNote = typeof o.note === 'string' ? JSON.parse(o.note) : o.note,
+    $n: MisskeyNote = n.renote && !n.text ? n.renote : n,
+
+    userId = misskey.users.loginUser?.id,
+    isQuote = o.class == 'renote' || o.class == 'reply',
+
+    root = <MisskeyNoteElement>h('div', { class: ['mi-note', o.class].join(' ') }),
+    media: Record<string, HTMLElement> = {};
 
   root.setAttribute('note-id', [n.id, $n.id].join(' '));
   root.$n = $n;
 
-  const toggleClass = (elem: HTMLElement, className: string) => {
-    elem.classList.toggle(className);
-  };
-
-  type ModalRow = { icon: string, contents: string, action: () => unknown };
-  const genModal = (...row: (ModalRow | falsy)[]) => document.body.appendChild(h('m3-bottom-sheet', { class: 'note-modal', bg: true },
-    ...row.filter((row): row is ModalRow => Boolean(row)).map(
-      ({ icon, action, contents }) => h('m3-button', { type: 'text', onclick: action }, h('icon', { name: icon }), ...(Array.isArray(contents) ? contents : [contents]))
-    ),
-    h('m3-button', { onclick() { (<HTMLButtonElement>this).parentNode!.parentNode!.parentNode!.remove() } }, 'キャンセル')
-  ));
-
   const favoriteBtn = h('button', {
     onclick() {
       const isFavorited = favoriteBtn.classList.contains('isFavorited');
-
-      misskey.api.POST(`/notes/favorites/${isFavorited ? 'delete' : 'create'}`, { noteId: $n.id })
-        .then(() => toggleClass(favoriteBtn, 'isFavorited'));
-    },
-    class: 'loading'
+      apiCall(`notes/favorites/${isFavorited ? 'delete' : 'create'}`, { noteId: $n.id }).then(() => favoriteBtn.classList.toggle('isFavorited'));
+    }, class: 'loading'
   }, h('icon', { name: 'bookmark' }));
 
-  !isQuote && misskey.api.POST<{ isFavorited: boolean }>('notes/state', { i, noteId: $n.id })
-    .then(({ isFavorited }) => favoriteBtn.classList.toggle('isFavorited', isFavorited));
+  !isQuote && apiCall<{ isFavorited: boolean }>('notes/state', { noteId: $n.id }).then(
+    ({ isFavorited }) => isFavorited ? favoriteBtn.setAttribute('class', 'isFavorited') : favoriteBtn.removeAttribute('class')
+  );
 
-  root.reaction = (e: string) => misskey.api.POST('notes/reactions/' + ($n.myReaction ? 'delete' : 'create'), {
-    i, noteId: $n.id, reaction: e
-  });
+  root.renote = () => apiCall('notes/create', { renoteId: $n.id });
+  root.removeNote = () => apiCall('notes/delete', { noteId: n.id });
+  root.reaction = async (e: string) => {
+    const d = () => apiCall('notes/reactions/delete', { noteId: $n.id, reaction: $n.myReaction });
+    const c = () => apiCall('notes/reactions/create', { noteId: $n.id, reaction: e }).then(() => $n.myReaction = e);
 
-  root.renote = () => misskey.api.POST('notes/create', { i, renoteId: $n.id });
-  root.removeNote = () => misskey.api.POST('notes/delete', { i, noteId: n.id });
+    (e = e.replace('@.', '')) === ($n.myReaction = $n.myReaction?.replace('@.', ''))
+      ? d()
+      : $n.myReaction
+        ? document.body.append(h('m3-modal', { type: 'warning', actions: { OK() { d().then(c) } } }, 'リアクションを変更しますか？'))
+        : c();
+  };
 
-  root.addReaction = (e: any) => {
-    const button = reactions.qS(`button[name='${e.reaction}']`) || reactions.appendChild(
-      h('button', { onclick: () => root.reaction(e.reaction), name: e.reaction }, h('img', { src: misskey.emojis.search('name', e.reaction, instance)?.url }), h('text', '0'))
+  root.addReaction = (e: MisskeyReaction) => {
+    const button = reactions.qS<HTMLButtonElement>(`button[name='${e.reaction}']`) || reactions.appendChild(
+      h('button', { onclick: () => root.reaction(e.reaction), name: e.reaction }, h('img', { src: misskey.emojis.search('name', e.reaction)?.url }), h('text', '0'))
     );
     button.childNodes[1].textContent = String(Number(button.childNodes[1].textContent) + 1);
     if (e.userId === userId) {
@@ -90,19 +80,20 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
   };
 
   root.removeReaction = (e: any) => {
-    const button = reactions.qS<HTMLButtonElement>(`button[name='${e.reaction}']`)!;
-    button.childNodes[1].textContent = String(Number(button.childNodes[1].textContent) - 1);
-    if (e.userId === userId) {
-      button.classList.remove('reacted');
-      $n.myReaction = null;
+    const button = reactions.qS<HTMLButtonElement>(`button[name='${e.reaction}']`);
+    if (button) {
+      button.childNodes[1].textContent = String(Number(button.childNodes[1].textContent) - 1);
+      if (e.userId === userId) {
+        button.classList.remove('reacted');
+        $n.myReaction = null;
+      }
+      if (!Number(button.childNodes[1].textContent)) button.remove();
     }
-    if (!Number(button.childNodes[1].textContent)) button.remove();
   };
 
   for (const f of $n.files) {
     const type = f.type.split('/')[0];
 
-    // Idea 内部で変数'type'を使わなければ、コードを短くできる可能性
     if (!media[type]) media[type] = h('div', { class: `media ${type}`, style: `display: ${isQuote ? 'none' : ''}` });
     switch (type) {
       case 'image':
@@ -125,19 +116,16 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
             : img
         );
         break;
-      case 'audio':
-        media['audio'].append(h('audio-player', { src: f.url }));
-        break;
+      case 'audio': media['audio'].append(h('audio-player', { src: f.url })); break;
       default: break;
     }
   }
 
-  if (n.renote) if (n.text) {
-    root.quote = isQuote
+  if (n.renote) n.text
+    ? root.quote = isQuote
       ? h('a', { href: app.host + '/notes/' + n.renote.id }, 'Quote...')
       : h('mi-note', { class: 'renote', note: n.renote })
-  } else {
-    root.renoter = h('p', { class: 'status renoter' },
+    : root.renoter = h('p', { class: 'status renoter' },
       h('span', { class: 'name' },
         h('img', { src: n.user.avatarUrl, class: 'avater' }),
         ...mfm((n.user.name ?? n.user.username) + 'がﾘﾉｰﾄ'),
@@ -152,8 +140,7 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
             } : {
               icon: 'report',
               contents: 'リノートを通報',
-              // TODO 復活
-              action() { /* app.toast.add({ contents: '未実装' }) */ }
+              action() { }
             }, {
               icon: 'content_copy',
               contents: 'リンクをコピー',
@@ -170,7 +157,6 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
         relativeTime(n.createdAt) + '前'
       )
     );
-  }
 
   const contents = h('div', { class: 'contents' },
     ...mfm($n.text),
@@ -193,12 +179,9 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
       ...mfm($n.cw),
       h('m3-button', {
         onclick() {
-          if (cw) {
-            const contentDiv = cw.qS<HTMLElement>('div.contents')!;
-            const visibility = contentDiv.style.display === 'none'
-            contentDiv.style.display = visibility ? '' : 'none';
-            cw.qS('button')!.textContent = visibility ? 'もっと見る' : '隠す';
-          };
+          const visibility = contents.style.display !== 'none';
+          contents.style.display = visibility ? 'none' : '';
+          (<HTMLButtonElement>this).textContent = visibility ? 'もっと見る' : '隠す';
         }
       }, 'もっと見る'),
       contents,
@@ -211,15 +194,13 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
         isExternal = e.replaceAll(':', '').split('@')[1] !== '.',
         url = isExternal
           ? (n.renote && !root.quote ? $n : n).reactionEmojis[e.replaceAll(':', '')]
-          : misskey.emojis.search('name', e, instance)?.url;
+          : misskey.emojis.search('name', e)?.url;
 
       return h('button', {
         onclick: () => !isExternal && root.reaction(e),
         name: e,
         class: [$n.myReaction == e && 'reacted', isExternal && 'external'].filter(v => v).join(' ')
-      },
-        url ? h('img', { src: url, class: isExternal }) : e, String(c)
-      )
+      }, url ? h('img', { src: url, class: isExternal }) : e, String(c));
     })
   );
 
@@ -231,28 +212,22 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
     h('article',
       h('a', { href: '/@' + $n.user.username }, h('img', { src: $n.user.avatarUrl, class: 'avatar' })),
       h('div',
-        h('p', { class: 'status' }, h('a', { class: 'name', href: '' }, ...mfm($n.user.name), ' @' + $n.user.username), h('a', { href: `/notes/${n.id}` }, relativeTime($n.createdAt) + '前')),
+        h('p', { class: 'status' },
+          h('a', { class: 'name', href: '@' + $n.user.username }, ...mfm($n.user.name), '  @' + $n.user.username),
+          h('a', { href: `/notes/${n.id}` }, relativeTime($n.createdAt) + '前')
+        ),
         cw ?? contents,
         !isQuote && reactions,
         !isQuote && h('footer',
+          h('button', { onclick() { document.body.append(h('post-modal', { reply: n })) } }, h('icon', { name: 'mode_comment' })),
           h('button', {
             onclick() {
-              document.body.append(h('post-modal', { reply: n }))
+              const modal = genModal(
+                { icon: 'repeat', contents: 'リノート', action() { root.renote(); modal.remove() } },
+                { icon: 'format_quote', contents: '引用', action() { document.body.append(h('post-modal', { quote: n })); modal.remove(); } }
+              )
             }
-          }, h('icon', { name: 'mode_comment' })),
-          h('button', {
-            onclick() {
-              const modal = genModal({
-                icon: 'repeat',
-                contents: 'リノート',
-                action() { root.renote(); modal.remove() },
-              }, {
-                icon: 'format_quote',
-                contents: '引用',
-                action() { modal.remove(); document.body.append(h('post-modal', { quote: n })) },
-              });
-            }
-          }, h('span', { class: 'material-symbols-outlined' }, 'repeat')),
+          }, h('icon', { name: 'repeat' })),
           h('button', {
             onclick() {
               const modal = document.body.appendChild(h('m3-bottom-sheet', { class: 'emoji-pallet', bg: true }, h('mi-emoji-pallet', {
@@ -264,56 +239,47 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
           }, h('span', { class: 'material-symbols-outlined' }, 'add')),
           h('button', {
             onclick() {
-              const modal = genModal(userId === $n.user.id && {
-                icon: 'edit',
-                contents: '削除して編集',
-                action() {
-                  document.body.append(h('post-modal', {
-                    replace: $n,
-                    quote: root.quote && n.renote,
-                    reply: $n.reply && !isQuote && $n.reply
-                  }));
-                  modal.remove();
-                }
-              }, userId === $n.user.id && {
-                icon: 'delete',
-                contents: 'ノートを削除',
-                action() { misskey.api.POST('notes/delete', { i, noteId: $n.id }).then(_ => { modal.remove() }) }
-              });
+              const modal = genModal(
+                userId === $n.user.id && {
+                  icon: 'edit', contents: '削除して編集', action() {
+                    document.body.append(h('post-modal', {
+                      replace: $n,
+                      quote: root.quote && n.renote,
+                      reply: $n.reply && !isQuote && $n.reply
+                    }));
+                    modal.remove();
+                  }
+                },
+                userId === $n.user.id && { icon: 'delete', contents: 'ノートを削除', action() { apiCall('notes/delete', { noteId: $n.id }).then(_ => { modal.remove() }) } }
+              );
             }
-          }, h('span', { class: 'material-symbols-outlined' }, 'more_horiz')),
+          }, h('icon', { name: 'more_horiz' })),
           favoriteBtn,
           h('button', {
             onclick() {
-              const modal = genModal({
-                icon: 'content_copy',
-                contents: 'リンクをコピー',
-                action() {
-                  if ('clipboard' in navigator) navigator.clipboard.writeText('/notes/' + n.id)
-                    .then(
+              const modal = genModal(
+                {
+                  icon: 'content_copy', contents: 'リンクをコピー', action() {
+                    if ('clipboard' in navigator) navigator.clipboard.writeText('/notes/' + n.id).then(
                       _ => app.toast.add({ contents: 'クリップボードにコピーしました。' })
                     )
-                  else app.toast.add({ type: 'error', contents: '使えないみたい...' });
-                  modal.remove()
-                }
-              }, {
-                icon: 'share',
-                contents: 'その他の方法でシェア',
-                action() {
+                    else app.toast.add({ type: 'error', contents: '使えないみたい...' })
+                    modal.remove()
+                  }
+                }, {
+                icon: 'share', contents: 'その他の方法でシェア', action() {
                   if (navigator.share) navigator.share({ url: '/notes/' + n.id })
-                  else app.toast.add({ type: 'error', contents: '使えないみたい...' });
+                  else app.toast.add({ type: 'error', contents: '使えないみたい...' })
                   modal.remove()
                 }
               }, {
-                icon: 'format_quote',
-                contents: 'ノートを引用',
-                action() {
+                icon: 'format_quote', contents: 'ノートを引用', action() {
                   modal.remove();
                   document.body.append(h('post-modal', { quote: n }))
                 }
               });
             }
-          }, h('span', { class: 'material-symbols-outlined' }, 'share')),
+          }, h('icon', { name: 'share' }))
         )
       )
     )

@@ -107,8 +107,8 @@ export function postModal(o: KuElementTagNameMap['post-modal']['options'] = {}) 
                   text: textarea.value,
                   visibility: visibility.value,
                   ...(media.childNodes[0] && { fileIds: [...media.childNodes].map(e => (<HTMLImageElement>e).getAttribute('fileId')) }),
-                  ...(o.quote && { renoteId: o.quote.id }),
-                  ...(o.reply && { replyId: o.reply.id })
+                  ...(o.quote && { renoteId: (o.quote.text ? o.quote : o.quote.renote)?.id }),
+                  ...(o.reply && { replyId: (o.reply.text ? o.quote : o.reply.renote)?.id })
                 })
                   .then(_ => o.replace && misskey.api.POST('notes/delete', { noteId: o.replace.id }));
               }
