@@ -51,6 +51,8 @@
   }
 
   span.material-symbols-outlined {
+    height: 1em;
+    width: 1em;
     font-variation-settings:
       'FILL' 0,
       'wght' 400,
