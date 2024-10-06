@@ -1,15 +1,55 @@
 import './styles/note.css';
+import { parse, MfmNode } from 'mfm-js';
 import { h, misskey, app } from '@/scripts';
 
 function relativeTime(t: number) {
-  return (t = Math.ceil((new Date().getTime() - new Date(t).getTime()) / 1000)) < 60 ? t + '秒' : (t = Math.ceil(t / 60)) < 60 ? t + '分' : (t = Math.ceil(t / 60)) < 24 ? t + '時間' : (t = Math.ceil(t / 24)) < 30 ? t + '日' : (t = Math.ceil(t / 30)) < 12 ? t + 'ヶ月' : (t = Math.ceil(t / 12)) ? '年' : null
+  let seconds = Math.ceil((new Date().getTime() - new Date(t).getTime()) / 1000);
+  const units = [
+    { time: 60, label: '秒' },
+    { time: 60, label: '分' },
+    { time: 24, label: '時間' },
+    { time: 30, label: '日' },
+    { time: 12, label: 'ヶ月' },
+    { time: Infinity, label: '年' }
+  ];
+
+  for (let { time, label } of units) {
+    if (seconds < time) return `${seconds}${label}`;
+    seconds = Math.ceil(seconds / time);
+  }
 }
 
 export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
-  // TODO MFM.js
-  const mfm = (t: nullable<string>) => [t];
+  const mfm = (t: nullable<string>): (InheritsFromNode | string | falsy)[] => {
+    const N2D = (node: MfmNode): (InheritsFromNode | string | falsy) => {
+      if (node.type === 'text') return h('span', node.props.text);
+      else if (node.type === 'url') return h('a', { href: node.props.url }, ...(node.children ? node.children.map(N2D) : [node.props.url]));
+      else if (node.type === 'hashtag') return h('a', { class: 'hashtag' }, node.props.hashtag);
+      else if (node.type === 'emojiCode') {
+        const emoji = misskey.emojis.search('name', node.props.name, instance);
+        return emoji ? h('img', { src: emoji.url, class: 'emoji', loading: 'lazy' }) : h('span', node.props.name);
+      }
+    };
 
-  // TODO iconの型
+    return parse(t ?? '').map(N2D);
+  };
+
+  const userId = misskey.users.loginUser?.id;
+  const i = misskey.users.loginUser?.i;
+  const root = h('div', { class: ['mi-note', o.class].join(' ') }) as MisskeyNoteElement;
+  const media: Record<string, HTMLElement> = {};
+  const n: MisskeyNote = typeof o.note === 'string' ? JSON.parse(o.note) : o.note;
+  const $n = n.renote && !n.text ? n.renote : n;
+  const isQuote = o.class == 'renote' || o.class == 'reply';
+  const instance = misskey.users.loginUser?.host as string;
+
+  root.setAttribute('note-id', [n.id, $n.id].join(' '));
+  root.$n = $n;
+
+  const toggleClass = (elem: HTMLElement, className: string) => {
+    elem.classList.toggle(className);
+  };
+
   type ModalRow = { icon: string, contents: string, action: () => unknown };
   const genModal = (...row: (ModalRow | falsy)[]) => document.body.appendChild(h('m3-bottom-sheet', { class: 'note-modal', bg: true },
     ...row.filter((row): row is ModalRow => Boolean(row)).map(
@@ -18,120 +58,78 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
     h('m3-button', { onclick() { (<HTMLButtonElement>this).parentNode!.parentNode!.parentNode!.remove() } }, 'キャンセル')
   ));
 
-  // OK
-  const userId = misskey.users.loginUser?.id;
-  const i = misskey.users.loginUser?.i;
-  const root = h('div', { class: ['mi-note', o.class].join(' ') }) as MisskeyNoteElement;
-  const media: Record<string, HTMLElement> = {};
-  const n: MisskeyNote = typeof o.note === 'string' ? JSON.parse(o.note) : o.note;
-  const $n = n.renote && !n.text ? n.renote : n;
-  const isQuote = o.class == 'renote' || o.class == 'reply';
-
-  const instance = misskey.users.loginUser?.instance?.origin as string;
-
-  // Change! noteid => note-id
-  root.setAttribute('note-id', [n.id, $n.id].join(' '));
-  root.$n = $n;
-
-  // OK
   const favoriteBtn = h('button', {
     onclick() {
-      const state = favoriteBtn.getAttribute('class');
+      const isFavorited = favoriteBtn.classList.contains('isFavorited');
 
-      misskey.api.POST('/notes/favorites/' + (state === 'isFavorited' ? 'delete' : 'create'), { noteId: $n.id })
-        .then(_ => {
-          state === 'isFavorited' ? favoriteBtn.removeAttribute('class') : favoriteBtn.setAttribute('class', 'isFavorited');
-        })
-    }, class: 'loading'
+      misskey.api.POST(`/notes/favorites/${isFavorited ? 'delete' : 'create'}`, { noteId: $n.id })
+        .then(() => toggleClass(favoriteBtn, 'isFavorited'));
+    },
+    class: 'loading'
   }, h('icon', { name: 'bookmark' }));
 
-  !isQuote && misskey.api.POST<{ isFavorited: boolean }>('notes/state', {
-    i, noteId: $n.id
-  }).then(
-    ({ isFavorited }) => favoriteBtn.setAttribute('class', isFavorited ? 'isFavorited' : '')
-  )
+  !isQuote && misskey.api.POST<{ isFavorited: boolean }>('notes/state', { i, noteId: $n.id })
+    .then(({ isFavorited }) => favoriteBtn.classList.toggle('isFavorited', isFavorited));
 
-  root.switchCw = function () {
-    [
-      root.cw.qS<HTMLElement>('div.contents')!.style.display,
-      root.cw.qS('button')!.innerHTML
-    ] = root.cw.qS<HTMLElement>('div.contents')!.style.display == 'none' ? ['', '隠す'] : ['none', 'もっと見る'];
-  };
-
-  root.reaction = e => misskey.api.POST('notes/reactions/' + ($n.myReaction ? 'delete' : 'create'), {
+  root.reaction = (e: string) => misskey.api.POST('notes/reactions/' + ($n.myReaction ? 'delete' : 'create'), {
     i, noteId: $n.id, reaction: e
   });
 
-  root.renote = () => misskey.api.POST('notes/create', {
-    i, renoteId: $n.id,
-  });
+  root.renote = () => misskey.api.POST('notes/create', { i, renoteId: $n.id });
+  root.removeNote = () => misskey.api.POST('notes/delete', { i, noteId: n.id });
 
-  root.removeNote = () => misskey.api.POST('notes/delete', {
-    i, noteId: n.id,
-  });
-
-  root.addReaction = e => {
-    const $ = root.reactions.qS(`button[name='${e.reaction}']`) ?? root.reactions.appendChild(
-      h('button', {
-        onclick: (() => root.reaction(e.reaction)),
-        name: e.reaction,
-        class: e.userId == userId && 'reacted'
-      },
-        ($ => $ ? h('img', { src: $.url }) : h('text', e.reaction))(misskey.emojis.search('name', e.reaction, instance)),
-        h('text', '0')
-      )
+  root.addReaction = (e: any) => {
+    const button = reactions.qS(`button[name='${e.reaction}']`) || reactions.appendChild(
+      h('button', { onclick: () => root.reaction(e.reaction), name: e.reaction }, h('img', { src: misskey.emojis.search('name', e.reaction, instance)?.url }), h('text', '0'))
     );
-
-    $.childNodes[1].textContent = String(Number($.childNodes[1].textContent) + 1);
-
-    if (e.userId == userId) {
-      $.setAttribute('class', 'reacted');
+    button.childNodes[1].textContent = String(Number(button.childNodes[1].textContent) + 1);
+    if (e.userId === userId) {
+      button.classList.add('reacted');
       $n.myReaction = e.reaction;
-    };
-  }
+    }
+  };
 
-  root.removeReaction = e => {
-    const $ = root.reactions.qS<HTMLButtonElement>(`button[name='${e.reaction}']`)!;
-
-    $.childNodes[1].textContent = String(Number($.childNodes[1].textContent) - 1);
-
-    if (e.userId == userId) {
-      $.setAttribute('class', '');
+  root.removeReaction = (e: any) => {
+    const button = reactions.qS<HTMLButtonElement>(`button[name='${e.reaction}']`)!;
+    button.childNodes[1].textContent = String(Number(button.childNodes[1].textContent) - 1);
+    if (e.userId === userId) {
+      button.classList.remove('reacted');
       $n.myReaction = null;
     }
-
-    if (!Number($.childNodes[1].textContent)) $.remove();
-  }
+    if (!Number(button.childNodes[1].textContent)) button.remove();
+  };
 
   for (const f of $n.files) {
     const type = f.type.split('/')[0];
 
-    if (!media[type]) media[type] = h('div', { class: ['media', type].join(' '), style: `display: ${isQuote ? 'none' : ''}` });
-    if (type === 'image') {
-      const $ = h('img', {
-        src: f.thumbnailUrl, loading: 'lazy', onclick() {
-          root.appendChild(
-            h('div', { class: 'popup', onclick() { (<HTMLElement>this).remove() } },
-              h('img', { src: f.url, }),
-            )
-          )
-        }
-      });
-      media[type].append(
-        f.isSensitive
-          ? h('div', { class: 'sensitive', onclick() { (<HTMLElement>this).parentNode?.replaceChild($, <HTMLElement>this) } },
-            h('span', { class: 'material-symbols-outlined' }, 'visibility_off'),
-            'センシティブなメディア'
-          )
-          : $
-      );
-    } else if (type === 'audio') {
-      media[type].append(h('audio-player', { src: f.url }));
-    }
-  }
+    // Idea 内部で変数'type'を使わなければ、コードを短くできる可能性
+    if (!media[type]) media[type] = h('div', { class: `media ${type}`, style: `display: ${isQuote ? 'none' : ''}` });
+    switch (type) {
+      case 'image':
+        const img = h('img', {
+          src: f.thumbnailUrl, loading: 'lazy', decoding: 'async', onclick() {
+            root.append(
+              h('div', { class: 'popup', onclick() { (<HTMLElement>this).remove() } },
+                h('img', { src: f.url, loading: 'lazy', decoding: 'async' })
+              )
+            );
+          }
+        });
 
-  for (const dom of Object.values(media)) {
-    dom.setAttribute('class', [dom.getAttribute('class'), `items${dom.childNodes.length}`].join(' '))
+        media['image'].append(
+          f.isSensitive
+            ? h('div', { class: 'sensitive', onclick() { (<HTMLElement>this).parentNode?.replaceChild(img, <HTMLElement>this) } },
+              h('span', { class: 'material-symbols-outlined' }, 'visibility_off'),
+              'センシティブなメディア'
+            )
+            : img
+        );
+        break;
+      case 'audio':
+        media['audio'].append(h('audio-player', { src: f.url }));
+        break;
+      default: break;
+    }
   }
 
   if (n.renote) if (n.text) {
@@ -140,7 +138,7 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
       : h('mi-note', { class: 'renote', note: n.renote })
   } else {
     root.renoter = h('p', { class: 'status renoter' },
-      h('span',
+      h('span', { class: 'name' },
         h('img', { src: n.user.avatarUrl, class: 'avater' }),
         ...mfm((n.user.name ?? n.user.username) + 'がﾘﾉｰﾄ'),
       ),
@@ -172,10 +170,6 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
         relativeTime(n.createdAt) + '前'
       )
     );
-
-    if (n.renote.renote) isQuote
-      ? h('a', { href: '/notes/' + n.renote.renote.id }, 'Quote...')
-      : h('mi-note', { note: n.renote.renote, class: 'renote' })
   }
 
   const contents = h('div', { class: 'contents' },
@@ -193,25 +187,40 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
     root.quote
   );
 
-  if ($n.cw) {
-    contents.style.display = 'none';
-    root.cw = h('div', { class: 'cw' },
+  const cw = $n.cw && (
+    (contents.style.display = 'none'),
+    h('div', { class: 'cw' },
       ...mfm($n.cw),
-      h('m3-button', { onclick: root.switchCw }, 'もっと見る'),
+      h('m3-button', {
+        onclick() {
+          if (cw) {
+            const contentDiv = cw.qS<HTMLElement>('div.contents')!;
+            const visibility = contentDiv.style.display === 'none'
+            contentDiv.style.display = visibility ? '' : 'none';
+            cw.qS('button')!.textContent = visibility ? 'もっと見る' : '隠す';
+          };
+        }
+      }, 'もっと見る'),
       contents,
-    );
-  }
-
-  root.reactions = h('div', { class: 'reactions' },
-    ...Object.entries((n.renote && !root.quote ? $n : n).reactions ?? {}).map(([e, c]) =>
-      h('button', {
-        onclick: () => root.reaction(e),
-        name: e,
-        class: $n.myReaction == e && 'reacted'
-      },
-        ($ => $ ? h('img', { src: $.url }) : e)(misskey.emojis.search('name', e, instance)), String(c)
-      )
     )
+  );
+
+  const reactions = h('div', { class: 'reactions' },
+    ...Object.entries((n.renote && !root.quote ? $n : n).reactions ?? {}).map(([e, c]) => {
+      const
+        isExternal = e.replaceAll(':', '').split('@')[1] !== '.',
+        url = isExternal
+          ? (n.renote && !root.quote ? $n : n).reactionEmojis[e.replaceAll(':', '')]
+          : misskey.emojis.search('name', e, instance)?.url;
+
+      return h('button', {
+        onclick: () => !isExternal && root.reaction(e),
+        name: e,
+        class: [$n.myReaction == e && 'reacted', isExternal && 'external'].filter(v => v).join(' ')
+      },
+        url ? h('img', { src: url, class: isExternal }) : e, String(c)
+      )
+    })
   );
 
   root.append(
@@ -220,20 +229,15 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
       $n.reply && !isQuote && h('mi-note', { class: 'reply', note: $n.reply })
     ),
     h('article',
-      h('a', { href: '/@' + $n.user.username },
-        h('img', { src: $n.user.avatarUrl, class: 'avatar' })
-      ),
+      h('a', { href: '/@' + $n.user.username }, h('img', { src: $n.user.avatarUrl, class: 'avatar' })),
       h('div',
-        h('p', { class: 'status' },
-          h('span', { class: 'name' }, ...mfm($n.user.name), ' @' + $n.user.username),
-          h('span', { onclick() { location.href = `/notes/${n.id}` } }, relativeTime($n.createdAt) + '前')
-        ),
-        root.cw ?? contents,
-        !isQuote && root.reactions,
+        h('p', { class: 'status' }, h('a', { class: 'name', href: '' }, ...mfm($n.user.name), ' @' + $n.user.username), h('a', { href: `/notes/${n.id}` }, relativeTime($n.createdAt) + '前')),
+        cw ?? contents,
+        !isQuote && reactions,
         !isQuote && h('footer',
           h('button', {
             onclick() {
-              document.body.append(h('mi-post-modal', { reply: n }))
+              document.body.append(h('post-modal', { reply: n }))
             }
           }, h('icon', { name: 'mode_comment' })),
           h('button', {
@@ -245,7 +249,7 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
               }, {
                 icon: 'format_quote',
                 contents: '引用',
-                action() { modal.remove(); document.body.append(h('mi-post-modal', { quote: n })) },
+                action() { modal.remove(); document.body.append(h('post-modal', { quote: n })) },
               });
             }
           }, h('span', { class: 'material-symbols-outlined' }, 'repeat')),
@@ -264,8 +268,7 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
                 icon: 'edit',
                 contents: '削除して編集',
                 action() {
-                  console.log(isQuote)
-                  document.body.append(h('mi-post-modal', {
+                  document.body.append(h('post-modal', {
                     replace: $n,
                     quote: root.quote && n.renote,
                     reply: $n.reply && !isQuote && $n.reply
@@ -306,14 +309,14 @@ export function miNote(o: KuElementTagNameMap['mi-note']['options']) {
                 contents: 'ノートを引用',
                 action() {
                   modal.remove();
-                  document.body.append(h('mi-post-modal', { quote: n }))
+                  document.body.append(h('post-modal', { quote: n }))
                 }
               });
             }
           }, h('span', { class: 'material-symbols-outlined' }, 'share')),
         )
       )
-    ),
+    )
   );
 
   return root;

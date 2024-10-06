@@ -9,7 +9,7 @@ interface MisskeyUser {
 interface MisskeyUser {
   id: ID;
   username: string;
-  host: string | null;
+  host: string;
   name: string;
   onlineStatus: 'online' | 'active' | 'offline' | 'unknown';
   avatarUrl: string;

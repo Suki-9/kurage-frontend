@@ -5,20 +5,20 @@ type MisskeyReaction = {
   reaction: string;
 }
 
+interface BottomBarElement extends HTMLDivElement {
+  modal: HTMLDivElement;
+}
+
 interface MisskeyNoteElement extends HTMLDivElement {
   $n: MisskeyNote;
 
-  cw: HTMLElement;
   quote: HTMLElement;
   renoter: HTMLElement;
-  reactions: HTMLElement;
 
   removeReaction: (e: MisskeyReaction) => void;
   addReaction: (e: MisskeyReaction) => void;
 
   reaction: (e: string) => Promise<void>;
-
-  switchCw: () => void;
 
   renote: () => void;
   removeNote: () => void;
@@ -57,7 +57,7 @@ type KuElementTagNameMap = {
     options: KuElementAttributes<{ note: string | MisskeyNote }>;
     type: MisskeyNoteElement;
   };
-  'mi-post-modal': {
+  'post-modal': {
     options: KuElementAttributes<{ quote?: MisskeyNote, reply?: MisskeyNote }>;
     type: HTMLDivElement;
   };
@@ -70,12 +70,12 @@ type KuElementTagNameMap = {
   };
   'mi-emoji-pallet': {
     options: KuElementAttributes<{
-      emitter: (e: { name: string }) => unknown;
+      emitter?: (e: { name: string }) => unknown;
     }>;
     type: HTMLDivElement;
   };
   'bottom-bar': {
     options: KuElementAttributes;
-    type: HTMLDivElement;
+    type: BottomBarElement;
   };
 };

@@ -16,7 +16,7 @@ export const api = {
         : [{ "Content-Type": "application/json" }, (b.i = i, JSON.stringify(b))];
 
     return fetch(
-      [op.instance ?? misskey.users.loginUser?.instance?.origin, 'api', ep].join('/'),
+      [op.instance ?? misskey.users.loginUser?.host, 'api', ep].join('/'),
       { method: 'POST', headers, body }
     ).then(async r => {
       const t = await r.text();

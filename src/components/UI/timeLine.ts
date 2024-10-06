@@ -12,8 +12,10 @@ async function waitQuerySelector(selector: string, node = document): Promise<HTM
 export function timeLine(o: KuElementTagNameMap['timeline']['options']) {
   function switchTL(channel: string) { }
 
+  const height = window.innerHeight;
+
   const loginUser = misskey.users.loginUser;
-  const root = h('div', { class: 'timeline' },
+  const root = h('div', { class: 'timeline', style: `height: ${height}px` },
     h('div', { class: 'head' },
       h('img', {
         src: loginUser?.avatarUrl, onclick() {

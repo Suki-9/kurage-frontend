@@ -32,7 +32,7 @@ export const stream: StreamingAPIUtils = {
   async streamConnection(channel = 'timeline', options?) {
     const
       id = genId(),
-      url = `${(options?.host ?? misskey.users.loginUser?.instance?.origin)?.replace('http', 'ws')}/streaming?i=${options?.i ?? misskey.users.loginUser?.i}`;
+      url = `${(options?.host ?? misskey.users.loginUser?.host)?.replace('http', 'ws')}/streaming?i=${options?.i ?? misskey.users.loginUser?.i}`;
 
     stream.connections[id] = includes(timeLineChannels, channel)
       ? new MisskeyTimeLineStream(url)

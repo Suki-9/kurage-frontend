@@ -1,0 +1,146 @@
+#post-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+
+  z-index: 4000;
+
+  width: 100%;
+  height: 100%;
+
+  background-color: rgba(0, 0, 0, 0.3);
+
+  animation-duration: 0.6s;
+  animation-name: moveIn;
+
+  &>.root {
+    position: fixed;
+    top: .5em;
+    left: .5em;
+
+    display: flex;
+    gap: .5em;
+    flex-direction: column;
+
+    width: calc(100% - 1em);
+
+    padding: .5em;
+
+    box-sizing: border-box;
+
+    border-radius: .5em;
+
+    background-color: var(--secondary-bg);
+    color: var(--on-secondary);
+
+    &>.head {
+      display: grid;
+      justify-content: space-between;
+      grid-template-columns: auto auto;
+
+      button {
+        padding: 0;
+      }
+
+      select {
+        width: fit-content;
+
+        background-color: rgba(0, 0, 0, 0);
+        border: none;
+
+        font-size: 1em;
+        color: currentColor;
+
+        &:focus {
+          outline: none;
+        }
+
+        option {
+          color: var(--on-secondary-tonal);
+          background-color: var(--secondary-tonal-bg);
+        }
+      }
+    }
+
+    &>textarea {
+      resize: vertical;
+      height: 5em;
+
+      font-size: 1em;
+      color: currentColor;
+
+      width: 100%;
+
+      border: none;
+
+      background: none;
+
+      &.cw {
+        resize: none;
+        height: 1.2em;
+        border-bottom: solid 1px color-mix(in srgb, currentColor 50%, rgba(0, 0, 0, 0));
+      }
+
+      &:focus {
+        outline: none;
+      }
+    }
+
+    &>.media {
+      display: flex;
+      gap: .25em;
+
+      width: 100%;
+
+      img {
+        width: 20%;
+
+        aspect-ratio: 1;
+        object-fit: cover;
+
+        box-sizing: border-box;
+
+        border-radius: .5em;
+
+        &[issensitive='true'] {
+          border: solid 1px red;
+        }
+      }
+    }
+
+    &>.footer {
+      display: grid;
+      justify-content: space-between;
+      grid-template-columns: 1fr auto;
+
+      button {
+        width: fit-content;
+
+        font-size: 1em;
+
+        border-radius: .5em;
+
+        background: none;
+        border: none;
+
+        color: currentColor;
+      }
+
+      &>div {
+        display: flex;
+        gap: .25em;
+      }
+
+      &>button {
+        display: flex;
+        align-items: center;
+        gap: .25em;
+
+        padding: .5em;
+
+        background-color: rgb(160, 160, 255);
+        color: rgb(20, 20, 20);
+      }
+    }
+  }
+}

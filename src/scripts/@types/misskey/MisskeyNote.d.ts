@@ -6,6 +6,10 @@ type NoteReaction = {
 };
 
 interface MisskeyNote {
+	reactionEmojis: Record<string, string>
+}
+
+interface MisskeyNote {
 	id: ID;
 	createdAt: DateString;
 	text: string | null;

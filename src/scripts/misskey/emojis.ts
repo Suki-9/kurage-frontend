@@ -1,21 +1,13 @@
 import { IDB } from "@/scripts";
 
-type MiEmoji = {
-  aliases: string;
-  category: string;
-  name: string;
-  url: string;
-}
-
-type CategorizedIndex = { [K: string]: CategorizedIndex } & { $?: MiEmoji[] };
-
 type MisskeyEmojisUtils = {
   Initialized: boolean;
-  _index: nullable<Record<string, { $: MiEmoji[], category?: nullable<CategorizedIndex> }>>;
+  _index: nullable<Record<string, { $: MisskeyEmoji[], category?: nullable<CategorizedIndex> }>>;
 
   init: () => Promise<void>;
   add: (instance: string) => Promise<void>;
-  search: (t: 'aliases' | 'category' | string, q: string, instance: string) => any;
+  get: <T extends 'categorized' | 'list'>(instance: string, type?: T) => nullable<T extends 'categorized' ? CategorizedIndex : MisskeyEmoji[]>;
+  search: <T extends 'aliases' | 'category' | string>(t: T, q: string, instance: string, limit?: number) => T extends 'aliases' ? MisskeyEmoji[] : T extends 'category' ? MisskeyEmoji[] : nullable<MisskeyEmoji>;
 }
 
 // TODO コードを短くする (基本機能完成後)
@@ -35,7 +27,7 @@ export const emojis: MisskeyEmojisUtils = {
       Object.defineProperty(this._index[key], 'category', {
         get(): CategorizedIndex {
           return this._category ?? (
-            this._category = (<MiEmoji[]>this.$).reduce<CategorizedIndex>((r, e) => ($ => ($['$'] ? $['$'].push(e) : $['$'] = [e], r))(e.category.split('/').filter(v => v).map(v => v.trim()).reduce((a, c) => c in a ? a[c] : (a[c] = {}, a[c]), r)), {})
+            this._category = (<MisskeyEmoji[]>this.$).reduce<CategorizedIndex>((r, e) => ($ => ($['$'] ? $['$'].push(e) : $['$'] = [e], r))(e.category.split('/').filter(v => v).map(v => v.trim()).reduce((a, c) => c in a ? a[c] : (a[c] = {}, a[c]), r)), {})
           );
         }
       })
@@ -46,7 +38,7 @@ export const emojis: MisskeyEmojisUtils = {
   async add(instance: string) {
     return fetch(instance + '/api/emojis').then(
       async r => {
-        const { emojis }: { emojis: MiEmoji[] } = (await r.json());
+        const { emojis }: { emojis: MisskeyEmoji[] } = (await r.json());
         await IDB.put('emojis', { key: instance, val: emojis });
 
         if (!this._index) this._index = {};
@@ -57,7 +49,7 @@ export const emojis: MisskeyEmojisUtils = {
         Object.defineProperty(this._index[instance], 'category', {
           get(): CategorizedIndex {
             return this._category ?? (
-              this._category = (<MiEmoji[]>this.$).reduce<CategorizedIndex>((r, e) => ($ => ($['$'] ? $['$'].push(e) : $['$'] = [e], r))(e.category.split('/').filter(v => v).map(v => v.trim()).reduce((a, c) => c in a ? a[c] : (a[c] = {}, a[c]), r)), {})
+              this._category = (<MisskeyEmoji[]>this.$).reduce<CategorizedIndex>((r, e) => ($ => ($['$'] ? $['$'].push(e) : $['$'] = [e], r))(e.category.split('/').filter(v => v).map(v => v.trim()).reduce((a, c) => c in a ? a[c] : (a[c] = {}, a[c]), r)), {})
             );
           }
         })
@@ -65,9 +57,32 @@ export const emojis: MisskeyEmojisUtils = {
     )
   },
 
-  search(t: 'aliases' | 'category' | 'name' | string, q: string, instance: string) {
+  // @ts-ignore
+  // アホTSのせいでウマいこと推論しない。
+  get(instance, type) {
     if (this._index) {
-      if (t == 'aliases') return this._index[instance].$?.filter(e => e.aliases.includes(q));
+      if (type === 'categorized') return this._index[instance]['category'] as unknown as MisskeyEmoji[];
+      else return this._index[instance].$ as unknown as MisskeyEmoji[];
+    }
+    else throw new Error('Please initialize');
+  },
+
+  // @ts-ignore
+  search(t: 'aliases' | 'category' | 'name' | string, q: string, instance: string, limit: number = 50) {
+    if (this._index) {
+      if (t == 'aliases') {
+        const result: MisskeyEmoji[] = [];
+
+        for (const e of this._index[instance].$) {
+          for (const alias of [...e.aliases, e.name]) if (~alias.indexOf(q)) {
+            result.push(e);
+            break;
+          }
+          if (limit <= result.length) break;
+        }
+
+        return result;
+      }
       if (t == 'category') return this._index[instance].$?.filter(e => e.category == q);
       else for (const e of this._index[instance].$) if (e.name == (q.match(/:.+@\.:/) ? q.match(/(?<=\:).*(?=@\.\:)/g)![0] : q)) return e;
     }

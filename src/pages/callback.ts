@@ -9,10 +9,8 @@ export function Page(): InheritsFromNode[] {
     async r => {
       const { token, user, ok }: { token: string, user: MisskeyUser, ok: boolean } = await r.json();
       if (ok) {
-        if (!user['instance']) user['instance'] = { origin: instance };
-        else if (!user['instance']['origin']) user['instance']['origin'] = instance;
-
-        user['i'] = token;
+        user.host = instance;
+        user.i = token;
 
         store.set('loginUser', `${instance}::${user.id}`);
 
