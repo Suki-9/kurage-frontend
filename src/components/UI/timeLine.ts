@@ -10,6 +10,7 @@ async function waitQuerySelector(selector: string, node = document): Promise<HTM
 }
 
 export function timeLine(o: KuElementTagNameMap['timeline']['options']) {
+  console.log(o);
   function switchTL(channel: string) { console.log(channel) }
 
   const height = window.innerHeight;
