@@ -2,6 +2,8 @@ import './styles/callback.css'
 import { h, cookie, misskey, store } from "@/scripts"
 
 export function Page(): InheritsFromNode[] {
+  document.qS(':root')?.removeAttribute('page');
+
   const instance = cookie.read('instance');
   const session = Object.fromEntries(location.search.replace('?', '').split('&').map($ => $.split('='))).session;
 

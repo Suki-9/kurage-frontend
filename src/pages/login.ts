@@ -2,6 +2,8 @@ import './styles/login.css'
 import { h, cookie, genId } from "@/scripts"
 
 export function Page(): InheritsFromNode[] {
+  document.qS(':root')?.setAttribute('page', 'login');
+
   const input = h('input', { type: 'text', placeholder: 'e.g. https://hoge.tld' });
   const button = h('m3-button', {
     onclick() {
