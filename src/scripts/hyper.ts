@@ -4,6 +4,7 @@ import {
   m3Button,
   m3BottomSheet,
   googleM3Icon,
+  audioPlayer,
   // UI Component
   UI,
 } from '../components';
@@ -36,7 +37,7 @@ export function h(
     case 'icon': return googleM3Icon(o as KuElementTagNameMap['icon']['options']);
     case 'm3-button': return m3Button(o as KuElementTagNameMap['m3-button'], ...c);
     case 'm3-modal': return m3Modal(o as KuElementTagNameMap['m3-modal']['options'], ...c);
-    // case 'audio-player': return AudioPlayer(o as KuElementTagNameMap['audio-player']['options']);
+    case 'audio-player': return audioPlayer(o as KuElementTagNameMap['audio-player']['options']);
     case 'm3-bottom-sheet': return m3BottomSheet(o as KuElementTagNameMap['m3-bottom-sheet']['options'], ...c);
     case 'mi-note': return UI.miNote(o as KuElementTagNameMap['mi-note']['options']);
     case 'post-modal': return UI.postModal(o as KuElementTagNameMap['post-modal']['options']);
